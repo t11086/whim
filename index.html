@@ -35,16 +35,20 @@
   .hometoggle input { display: none; }
   .hometoggle.on { background: #4a3f35; color: #f7f1e3; border-color: #4a3f35; }
 
-  .slots { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; perspective: 800px; }
+  .stage { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; perspective: 800px; }
+  .hint { text-align: center; font-size: 11px; color: #b3a184; letter-spacing: 1px; }
 
   .card {
     background: #fffdf7;
     border: 1.5px solid #e3d7bd;
-    border-radius: 16px;
-    padding: 16px 16px 14px;
-    box-shadow: 0 3px 0 #e3d7bd;
+    border-radius: 18px;
+    padding: 24px 20px 20px;
+    box-shadow: 0 4px 0 #e3d7bd;
     position: relative;
     transform-style: preserve-3d;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
   }
   .card.flip { animation: flip .38s ease; }
   @keyframes flip {
@@ -60,12 +64,12 @@
   }
   .place { font-size: 11px; color: #b3a184; }
 
-  .qtext { font-size: 18px; line-height: 1.6; margin: 12px 2px 14px; min-height: 3.2em; font-weight: bold; }
+  .qtext { font-size: 22px; line-height: 1.7; margin: 20px 2px 24px; min-height: 4.2em; font-weight: bold; }
 
   .actions { display: flex; gap: 10px; }
   .btn-skip, .btn-done {
     border: none; border-radius: 12px; font-family: inherit; font-size: 14px;
-    padding: 11px 0; cursor: pointer; font-weight: bold;
+    padding: 15px 0; cursor: pointer; font-weight: bold;
   }
   .btn-skip {
     flex: 1; background: #efe6d2; color: #8a7a64; box-shadow: 0 2px 0 #ddcfb4;
@@ -150,7 +154,10 @@
         <span id="homelabel">🏠 きょうは おうちで</span>
       </label>
     </div>
-    <div class="slots" id="slots"></div>
+    <div class="stage">
+      <div class="card" id="card"></div>
+      <p class="hint">← よこに スワイプしても べつのクエスト →</p>
+    </div>
   </section>
 
   <section id="view-album" hidden>
@@ -262,14 +269,15 @@ let S = load();
 function load() {
   let s = null;
   try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-  if (!s) s = { day: '', order: [], slots: [null, null, null], skipped: [], doneToday: [], homeMode: false, log: [] };
+  if (!s) s = { day: '', order: [], slot: null, skipped: [], doneToday: [], homeMode: false, log: [] };
+  if (Array.isArray(s.slots)) { s.slot = s.slots[0] ?? null; delete s.slots; }  // 旧3枠形式からの移行
   if (s.day !== todayStr()) {
     s.day = todayStr();
     s.order = dailyOrder(s.day);
     s.skipped = [];
     s.doneToday = [];
-    s.slots = [null, null, null];
-    for (let i = 0; i < 3; i++) s.slots[i] = draw(s);
+    s.slot = null;
+    s.slot = draw(s);
   }
   return s;
 }
@@ -282,22 +290,22 @@ function byId(id) { return QUESTS.find(q => q.id === id); }
 // デッキから次の1枚を引く。除外が厳しくて引けなければ段階的にゆるめる
 function draw(s) {
   const fits = q => !s.homeMode || q.place !== 'そと';
-  const inSlots = id => s.slots.includes(id);
+  const isCurrent = id => id === s.slot;
   const tiers = [
-    id => fits(byId(id)) && !inSlots(id) && !s.skipped.includes(id) && !s.doneToday.includes(id),
-    id => fits(byId(id)) && !inSlots(id) && !s.doneToday.includes(id),  // スキップ札を再利用
-    id => fits(byId(id)) && !inSlots(id),                               // 完了済みも再利用
+    id => fits(byId(id)) && !isCurrent(id) && !s.skipped.includes(id) && !s.doneToday.includes(id),
+    id => fits(byId(id)) && !isCurrent(id) && !s.doneToday.includes(id),  // スキップ札を再利用
+    id => fits(byId(id)) && !isCurrent(id),                               // 完了済みも再利用
   ];
   for (const ok of tiers) {
     const found = s.order.find(ok);
     if (found !== undefined) return found;
   }
-  return s.order.find(id => !inSlots(id)) ?? s.order[0];
+  return s.order.find(id => !isCurrent(id)) ?? s.order[0];
 }
 
 // ---- 描画 ----
 const $ = sel => document.querySelector(sel);
-const slotsEl = $('#slots');
+const cardEl = $('#card');
 
 function cardHTML(q) {
   const c = CATS[q.cat];
@@ -313,26 +321,41 @@ function cardHTML(q) {
     </div>`;
 }
 
-function renderSlots() {
-  slotsEl.innerHTML = '';
-  S.slots.forEach((id, i) => {
-    const div = document.createElement('div');
-    div.className = 'card';
-    div.dataset.slot = i;
-    div.innerHTML = cardHTML(byId(id));
-    slotsEl.appendChild(div);
-  });
+function renderCard() {
+  cardEl.innerHTML = cardHTML(byId(S.slot));
 }
 
-function flipTo(slotIdx, newId) {
-  const card = slotsEl.children[slotIdx];
-  card.classList.add('flip');
-  setTimeout(() => { card.innerHTML = cardHTML(byId(newId)); }, 190);
-  setTimeout(() => { card.classList.remove('flip'); }, 400);
+function flipTo(newId) {
+  cardEl.classList.add('flip');
+  setTimeout(() => { cardEl.innerHTML = cardHTML(byId(newId)); }, 190);
+  setTimeout(() => { cardEl.classList.remove('flip'); }, 400);
 }
 
-function burst(slotIdx) {
-  const card = slotsEl.children[slotIdx];
+// リロール: 横にすべり出て、次のカードが反対側から入ってくる
+let animating = false;
+function reroll(dir) {
+  if (animating) return;
+  animating = true;
+  S.skipped.push(S.slot);              // 同日中は再登場しない
+  S.slot = draw(S);
+  save();
+  cardEl.style.transition = 'transform .2s ease-in, opacity .2s';
+  cardEl.style.transform = `translateX(${dir * 120}%) rotate(${dir * 8}deg)`;
+  cardEl.style.opacity = '0';
+  setTimeout(() => {
+    renderCard();
+    cardEl.style.transition = 'none';
+    cardEl.style.transform = `translateX(${-dir * 60}%) rotate(${-dir * 4}deg)`;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      cardEl.style.transition = 'transform .22s ease-out, opacity .22s';
+      cardEl.style.transform = '';
+      cardEl.style.opacity = '1';
+      setTimeout(() => { animating = false; }, 240);
+    }));
+  }, 210);
+}
+
+function burst() {
   const b = document.createElement('div');
   b.className = 'burst';
   const emojis = ['🎉', '✨', '⭐', '🎊', '✨', '🌟'];
@@ -344,42 +367,63 @@ function burst(slotIdx) {
     sp.style.setProperty('--dy', `${Math.sin(ang) * 55 - 30}px`);
     b.appendChild(sp);
   });
-  card.appendChild(b);
+  cardEl.appendChild(b);
   setTimeout(() => b.remove(), 900);
 }
 
 // ---- 操作 ----
-slotsEl.addEventListener('click', e => {
-  const card = e.target.closest('.card');
-  if (!card) return;
-  const i = Number(card.dataset.slot);
+cardEl.addEventListener('click', e => {
   if (e.target.closest('.btn-skip')) {
-    S.skipped.push(S.slots[i]);            // 同日中は再登場しない
-    S.slots[i] = draw(S);
-    save();
-    flipTo(i, S.slots[i]);
+    reroll(-1);
   } else if (e.target.closest('.btn-done')) {
-    openModal(i);
+    openModal();
   }
 });
 
+// スワイプでリロール
+let dragStartX = null, dragX = 0;
+cardEl.addEventListener('pointerdown', e => {
+  if (animating || e.target.closest('button')) return;
+  dragStartX = e.clientX;
+  dragX = 0;
+  cardEl.setPointerCapture(e.pointerId);
+  cardEl.style.transition = 'none';
+});
+cardEl.addEventListener('pointermove', e => {
+  if (dragStartX === null) return;
+  dragX = e.clientX - dragStartX;
+  cardEl.style.transform = `translateX(${dragX}px) rotate(${dragX / 30}deg)`;
+});
+function dragEnd() {
+  if (dragStartX === null) return;
+  dragStartX = null;
+  if (Math.abs(dragX) > 70) {
+    reroll(Math.sign(dragX));
+  } else {
+    cardEl.style.transition = 'transform .18s ease-out';
+    cardEl.style.transform = '';
+  }
+  dragX = 0;
+}
+cardEl.addEventListener('pointerup', dragEnd);
+cardEl.addEventListener('pointercancel', dragEnd);
+
 // 完了モーダル
-let pendingSlot = null;
-function openModal(i) {
-  pendingSlot = i;
-  $('#modal-q').textContent = byId(S.slots[i]).text;
+let pending = false;
+function openModal() {
+  pending = true;
+  $('#modal-q').textContent = byId(S.slot).text;
   $('#modal').hidden = false;
 }
 function completeQuest(photo) {
-  const i = pendingSlot;
-  pendingSlot = null;
+  pending = false;
   $('#modal').hidden = true;
-  const id = S.slots[i];
+  const id = S.slot;
   const entry = { id, ts: Date.now() };
   if (photo) entry.photo = photo;
   S.log.push(entry);
   S.doneToday.push(id);
-  S.slots[i] = draw(S);
+  S.slot = draw(S);
   try {
     localStorage.setItem(KEY, JSON.stringify(S));
   } catch (e) {
@@ -389,20 +433,20 @@ function completeQuest(photo) {
       alert('容量がいっぱいで、しゃしんは保存できませんでした');
     }
   }
-  burst(i);
-  flipTo(i, S.slots[i]);
+  burst();
+  flipTo(S.slot);
   updateBadge();
 }
 $('#m-plain').addEventListener('click', () => completeQuest(null));
 $('#m-photo').addEventListener('click', () => $('#fileinput').click());
 $('#modal').addEventListener('click', e => {
-  if (e.target.id === 'modal') { $('#modal').hidden = true; pendingSlot = null; }
+  if (e.target.id === 'modal') { $('#modal').hidden = true; pending = false; }
 });
 
 $('#fileinput').addEventListener('change', async e => {
   const file = e.target.files[0];
   e.target.value = '';
-  if (!file || pendingSlot === null) return;
+  if (!file || !pending) return;
   const dataUrl = await shrinkImage(file, 800, 0.72);
   completeQuest(dataUrl);
 });
@@ -429,14 +473,10 @@ syncHomeLabel();
 homecheck.addEventListener('change', () => {
   S.homeMode = homecheck.checked;
   syncHomeLabel();
-  if (S.homeMode) {
-    // そとクエストの枠だけ差し替える（skipped扱いにはしない）
-    S.slots.forEach((id, i) => {
-      if (byId(id).place === 'そと') {
-        S.slots[i] = draw(S);
-        flipTo(i, S.slots[i]);
-      }
-    });
+  if (S.homeMode && byId(S.slot).place === 'そと') {
+    // そとクエストなら差し替える（skipped扱いにはしない）
+    S.slot = draw(S);
+    flipTo(S.slot);
   }
   save();
 });
@@ -496,7 +536,7 @@ function updateBadge() {
 
 // ---- 起動 ----
 save();
-renderSlots();
+renderCard();
 updateBadge();
 </script>
 </body>
