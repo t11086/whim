@@ -62,6 +62,11 @@
   .btn-done {
     background: #e8703a; color: #fff; box-shadow: 0 2px 0 #c05a2b; letter-spacing: 2px; font-size: 16px;
   }
+  .btn-have {
+    border: 1.5px dashed #d5c6a8; border-radius: 12px; font-family: inherit; font-size: 13px;
+    padding: 12px 0; cursor: pointer; font-weight: bold;
+    background: none; color: #8a7a64;
+  }
   .btn-skip:active, .btn-done:active { transform: translateY(2px); box-shadow: none; }
 
   /* emoji burst */
@@ -117,6 +122,13 @@
     transform: rotate(-6deg); margin-bottom: 12px; letter-spacing: 2px;
   }
   .mbox .mq { font-size: 14px; color: #8a7a64; line-height: 1.6; margin-bottom: 18px; }
+  .mnote {
+    width: 100%; border: 1.5px solid #ddcfb4; border-radius: 10px;
+    padding: 11px 12px; font-family: inherit; font-size: 15px;
+    background: #fff; color: inherit; margin-bottom: 4px;
+  }
+  .mnote::placeholder { color: #c9baa0; }
+  .enote { font-size: 13px; color: #8a7a64; margin-top: 6px; }
   .mbox button {
     display: block; width: 100%; border: none; border-radius: 12px; font-family: inherit;
     font-size: 15px; font-weight: bold; padding: 13px 0; cursor: pointer; margin-top: 10px;
@@ -153,8 +165,9 @@
 
 <div id="modal" hidden>
   <div class="mbox">
-    <div class="stamp">クエストクリア！</div>
+    <div class="stamp" id="modal-stamp">クエストクリア！</div>
     <p class="mq" id="modal-q"></p>
+    <input type="text" class="mnote" id="modal-note" hidden>
     <button class="m-photo" id="m-photo">📷 しゃしんを のこす</button>
     <button class="m-plain" id="m-plain">そのまま完了</button>
   </div>
@@ -177,11 +190,8 @@ const QUESTS = [
   { id: 1,  cat: 'hirou',    place: 'そと',    text: 'すべすべの石をひとつ拾う' },
   { id: 2,  cat: 'hirou',    place: 'そと',    text: 'きれいな落ち葉を1枚拾って、本にはさむ' },
   { id: 3,  cat: 'hirou',    place: 'そと',    text: '落ちているゴミをひとつ拾って、捨てる' },
-  { id: 4,  cat: 'hirou',    place: 'そと',    text: 'できるだけまっすぐな枝を探す' },
-  { id: 5,  cat: 'tsukuru',  place: 'いえ',    text: 'ダンボールを丸く切る' },
   { id: 6,  cat: 'tsukuru',  place: 'いえ',    text: '紙飛行機を折って、部屋の端から端まで飛ばす' },
   { id: 7,  cat: 'tsukuru',  place: 'いえ',    text: 'アルミホイルで、できるだけまんまるの球を作る' },
-  { id: 8,  cat: 'tsukuru',  place: 'いえ',    text: '輪ゴム3本で何かを発明する' },
   { id: 9,  cat: 'totonoe',  place: 'いえ',    text: 'いらないものをひとつ捨てる' },
   { id: 10, cat: 'totonoe',  place: 'どこでも', text: '財布からレシートを全部出す' },
   { id: 11, cat: 'totonoe',  place: 'どこでも', text: 'スマホの写真を、いらないもの1枚だけ消す' },
@@ -190,27 +200,43 @@ const QUESTS = [
   { id: 14, cat: 'kaku',     place: 'どこでも', text: '猫の絵を描く' },
   { id: 15, cat: 'kaku',     place: 'どこでも', text: '利き手じゃないほうの手で自分の名前を書く' },
   { id: 16, cat: 'kaku',     place: 'どこでも', text: '目をつぶって象の絵を描く' },
-  { id: 17, cat: 'kaku',     place: 'どこでも', text: 'いまの気持ちを五七五で詠む' },
-  { id: 18, cat: 'miru',     place: 'どこでも', text: '空を1分間見上げる' },
-  { id: 19, cat: 'miru',     place: 'どこでも', text: 'いちばん遠くから聞こえる音をつきとめる' },
-  { id: 20, cat: 'miru',     place: 'どこでも', text: '雲をひとつ選んで、名前をつける' },
-  { id: 21, cat: 'miru',     place: 'どこでも', text: '自分の手のひらのしわを30秒観察する' },
-  { id: 22, cat: 'miru',     place: 'どこでも', text: '今日の空の色に、いちばん近い色の名前をつける' },
-  { id: 23, cat: 'miru',     place: 'いえ',    text: '窓から見えるものをひとつ、声に出して実況する' },
-  { id: 24, cat: 'tanken',   place: 'そと',    text: '知らない道を1本だけ曲がってみる' },
-  { id: 25, cat: 'tanken',   place: 'そと',    text: '硬貨を投げて、表なら右、裏なら左に10歩歩く' },
+  { id: 17, cat: 'kaku',     place: 'どこでも', text: '好きな5文字を考える' },
+  { id: 21, cat: 'miru',     place: 'どこでも', text: '左手の感情線は、中指と人差し指の間までのびていますか？' },
   { id: 26, cat: 'tanken',   place: 'そと',    text: '今日の空を写真に1枚撮る' },
   { id: 27, cat: 'yattemiru', place: 'いえ',    text: '飲み物をいつもと違うコップで飲む' },
-  { id: 28, cat: 'yattemiru', place: 'どこでも', text: '目をつぶって一口食べて、味を言葉にする' },
-  { id: 29, cat: 'yattemiru', place: 'いえ',    text: '家の中をいつもと逆回りで一周する' },
   { id: 30, cat: 'yattemiru', place: 'いえ',    text: '家の中で、座ったことのない場所に座ってみる' },
-  { id: 31, cat: 'yattemiru', place: 'いえ',    text: '家にあるいちばん小さいものを探す' },
-  { id: 32, cat: 'yattemiru', place: 'いえ',    text: '本を1冊選んで、適当に開いたページだけ読む' },
-  { id: 33, cat: 'yattemiru', place: 'いえ',    text: '5年以上使っているものをひとつ見つけて、ねぎらう' },
-  { id: 34, cat: 'yattemiru', place: 'どこでも', text: 'ポケットかかばんの中身を全部出して、並べる' },
-  { id: 35, cat: 'yattemiru', place: 'どこでも', text: 'その場で10秒だけ、全力で変なダンスをする' },
-  { id: 36, cat: 'yattemiru', place: 'いえ',    text: '靴下を左右わざと違うものにして過ごす' },
+  { id: 32, cat: 'yattemiru', place: 'いえ',    text: '本を1冊選ぶ', input: '本のタイトル' },
+  { id: 34, cat: 'yattemiru', place: 'どこでも', text: 'かばんのポケットの中身を全部出して、並べる' },
+  { id: 35, cat: 'yattemiru', place: 'どこでも', text: '立ち上がってかかと上げを10回する' },
+  { id: 36, cat: 'yattemiru', place: 'いえ',    text: '口の中で舌回しをする' },
 ];
+
+// ---- チェーンクエスト（つづきもの） ----
+// 複数のクエストを順にこなすと何かが完成する。現在のステップだけがデッキに混ざる。
+// 見た目は普通のクエスト（チップなし）。完成して初めて意図に気づく。
+// have: true → 買い物系。「もう家にある」ボタンが出る（押すと完了扱い）
+const CHAINS = [
+  { id: 'shoyu', steps: [
+    { text: '八角を買ってくる', have: true },
+    { text: 'シナモンを買ってくる', have: true },
+    { text: '花椒を買ってくる', have: true },
+    { text: '八角とシナモンと花椒を瓶に入れて、醤油で漬ける' },
+    { text: '前につけた台湾風醤油を料理にかけてみる' },
+  ]},
+  { id: 'coaster', steps: [
+    { text: 'ダンボールを丸く切る' },
+    { text: '白いポスカを買ってくる', have: true },
+    { text: '丸く切ったダンボールに、白いポスカで模様を描く' },
+    { text: '模様を描いたダンボールをコースターにして、飲み物を飲む' },
+  ]},
+];
+const CHAIN_STEPS = {};
+CHAINS.forEach(ch => ch.steps.forEach((st, i) => {
+  CHAIN_STEPS[`${ch.id}-${i}`] = {
+    id: `${ch.id}-${i}`, text: st.text, have: !!st.have, cat: null,
+    chainId: ch.id, stepIndex: i, isLast: i === ch.steps.length - 1,
+  };
+}));
 
 // ---- 状態 ----
 const KEY = 'yorimichi_v1';
@@ -235,9 +261,13 @@ function mulberry32(a) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-function dailyOrder(day) {
+function dailyOrder(day, chains) {
   const rand = mulberry32(hashSeed(day));
   const ids = QUESTS.map(q => q.id);
+  CHAINS.forEach(ch => {
+    const step = (chains && chains[ch.id]) || 0;
+    if (step < ch.steps.length) ids.push(`${ch.id}-${step}`);
+  });
   for (let i = ids.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
     [ids[i], ids[j]] = [ids[j], ids[i]];
@@ -249,15 +279,27 @@ let S = load();
 function load() {
   let s = null;
   try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-  if (!s) s = { day: '', order: [], slot: null, skipped: [], doneToday: [], log: [] };
+  if (!s) s = { day: '', order: [], slot: null, skipped: [], doneToday: [], chains: {}, log: [] };
+  if (!s.chains) s.chains = {};
   if (Array.isArray(s.slots)) { s.slot = s.slots[0] ?? null; delete s.slots; }  // 旧3枠形式からの移行
+  s.order = (s.order || []).filter(id => byId(id));  // 廃止クエストを掃除
   if (s.day !== todayStr()) {
     s.day = todayStr();
-    s.order = dailyOrder(s.day);
+    s.order = dailyOrder(s.day, s.chains);
     s.skipped = [];
     s.doneToday = [];
     s.slot = null;
     s.slot = draw(s);
+  } else {
+    // 同日中のアップデート対応: 進行中チェーンの現在ステップがデッキに無ければ紛れ込ませる
+    CHAINS.forEach(ch => {
+      const step = s.chains[ch.id] || 0;
+      const stepId = `${ch.id}-${step}`;
+      if (step < ch.steps.length && !s.order.includes(stepId)) {
+        s.order.splice(Math.floor(Math.random() * (s.order.length + 1)), 0, stepId);
+      }
+    });
+    if (!byId(s.slot)) { s.slot = null; s.slot = draw(s); }
   }
   return s;
 }
@@ -265,7 +307,7 @@ function save() {
   try { localStorage.setItem(KEY, JSON.stringify(S)); }
   catch (e) { alert('保存にしっぱいしました（容量オーバーかも）'); }
 }
-function byId(id) { return QUESTS.find(q => q.id === id); }
+function byId(id) { return CHAIN_STEPS[id] || QUESTS.find(q => q.id === id); }
 
 // デッキから次の1枚を引く。除外が厳しくて引けなければ段階的にゆるめる
 function draw(s) {
@@ -288,14 +330,16 @@ const cardEl = $('#card');
 const stageEl = $('#stage');
 
 function cardHTML(q) {
-  const c = CATS[q.cat];
-  const chip = q.cat === 'yattemiru' ? '' :
-    `<span class="chip" style="background:${c.color}">${c.emoji} ${c.name}</span>`;
+  const c = q.cat ? CATS[q.cat] : null;   // チェーンのステップはチップなし（正体を隠す）
+  const chip = (c && q.cat !== 'yattemiru') ?
+    `<span class="chip" style="background:${c.color}">${c.emoji} ${c.name}</span>` : '';
+  const haveBtn = q.have ? '<button class="btn-have">🏠 もう家にある</button>' : '';
   return `
     <div class="chiprow">${chip}</div>
     <p class="qtext">${q.text}</p>
     <div class="actions">
       <button class="btn-done">やった！</button>
+      ${haveBtn}
       <button class="btn-skip">🔄 べつのにする</button>
     </div>`;
 }
@@ -353,6 +397,8 @@ cardEl.addEventListener('click', e => {
   if (animating) return;
   if (e.target.closest('.btn-skip')) {
     reroll(-1);
+  } else if (e.target.closest('.btn-have')) {
+    completeQuest(null);                 // 買わずに完了。写真は聞かない
   } else if (e.target.closest('.btn-done')) {
     openModal();
   }
@@ -390,7 +436,13 @@ cardEl.addEventListener('pointercancel', dragEnd);
 let pending = false;
 function openModal() {
   pending = true;
-  $('#modal-q').textContent = byId(S.slot).text;
+  const q = byId(S.slot);
+  $('#modal-stamp').textContent = q.isLast ? 'なにかが完成した！' : 'クエストクリア！';
+  $('#modal-q').textContent = q.text;
+  const note = $('#modal-note');
+  note.hidden = !q.input;
+  note.placeholder = q.input || '';
+  note.value = '';
   $('#modal').hidden = false;
 }
 function completeQuest(photo) {
@@ -399,8 +451,25 @@ function completeQuest(photo) {
   const id = S.slot;
   const entry = { id, ts: Date.now() };
   if (photo) entry.photo = photo;
+  const noteEl = $('#modal-note');
+  const noteText = noteEl.hidden ? '' : noteEl.value.trim();
+  if (noteText) entry.note = noteText;
+  noteEl.value = '';
+  noteEl.hidden = true;
   S.log.push(entry);
   S.doneToday.push(id);
+  const cq = byId(id);
+  if (cq.chainId) {
+    // チェーンを1歩進め、次のステップをデッキのランダムな位置に紛れ込ませる
+    if ((S.chains[cq.chainId] || 0) === cq.stepIndex) {
+      S.chains[cq.chainId] = cq.stepIndex + 1;
+      if (!cq.isLast) {
+        const nextId = `${cq.chainId}-${cq.stepIndex + 1}`;
+        S.order.splice(Math.floor(Math.random() * (S.order.length + 1)), 0, nextId);
+      }
+    }
+    S.order = S.order.filter(x => x !== id);
+  }
   S.slot = draw(S);
   try {
     localStorage.setItem(KEY, JSON.stringify(S));
@@ -455,6 +524,8 @@ function renderAlbum() {
   }
   let lastDate = '';
   [...S.log].reverse().forEach(entry => {
+    const q = byId(entry.id);
+    if (!q) return;                      // 廃止クエストのログはスキップ
     const d = new Date(entry.ts);
     const dstr = `${d.getMonth()+1}月${d.getDate()}日`;
     if (dstr !== lastDate) {
@@ -464,11 +535,16 @@ function renderAlbum() {
       lb.textContent = `── ${dstr} ──`;
       list.appendChild(lb);
     }
-    const q = byId(entry.id);
-    const c = CATS[q.cat];
+    const emoji = q.cat ? CATS[q.cat].emoji : '✨';
     const div = document.createElement('div');
     div.className = 'entry';
-    div.innerHTML = `<p class="etext">${c.emoji} ${q.text}</p>`;
+    div.innerHTML = `<p class="etext">${emoji} ${q.text}</p>`;
+    if (entry.note) {
+      const np = document.createElement('p');
+      np.className = 'enote';
+      np.textContent = `「${entry.note}」`;
+      div.appendChild(np);
+    }
     if (entry.photo) {
       const img = document.createElement('img');
       img.src = entry.photo;
