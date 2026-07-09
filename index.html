@@ -22,7 +22,24 @@
   header h1 { font-size: 22px; letter-spacing: 2px; }
 
   .stage { position: relative; height: min(62vh, 500px); margin-top: 20px; }
-  .hint { text-align: center; font-size: 11px; color: #b3a184; letter-spacing: 1px; margin-top: 16px; }
+  .hint { text-align: center; font-size: 11px; color: #b3a184; letter-spacing: 1px; margin-top: 44px; }
+
+  /* 完了スタンプ（チェーン完成時だけ出る軽い演出） */
+  .toast {
+    position: absolute; left: 50%; top: 34%;
+    font-size: 20px; font-weight: bold; color: #e8703a;
+    border: 3px solid #e8703a; border-radius: 10px; background: #fffdf7;
+    padding: 6px 18px; letter-spacing: 2px; white-space: nowrap;
+    z-index: 6; pointer-events: none;
+    animation: toastpop 1.5s ease forwards;
+  }
+  @keyframes toastpop {
+    0%   { opacity: 0; transform: translate(-50%, -50%) rotate(-6deg) scale(.5); }
+    15%  { opacity: 1; transform: translate(-50%, -50%) rotate(-6deg) scale(1.08); }
+    25%  { transform: translate(-50%, -50%) rotate(-6deg) scale(1); }
+    75%  { opacity: 1; transform: translate(-50%, -50%) rotate(-6deg) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -60%) rotate(-6deg) scale(1); }
+  }
 
   .card {
     position: absolute; inset: 0;
@@ -37,14 +54,8 @@
     -webkit-user-select: none;
   }
   .card.back { pointer-events: none; background: #fbf6e9; }
-  .card.b1 { transform: translateY(12px) scale(.96); }
-  .card.b2 { transform: translateY(24px) scale(.92); }
-
-  .chiprow { display: flex; justify-content: center; min-height: 22px; }
-  .chip {
-    display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 999px;
-    color: #fff; letter-spacing: 1px;
-  }
+  .card.b1 { transform: translateY(14px) rotate(-2.5deg) scale(.985); }
+  .card.b2 { transform: translateY(28px) rotate(2deg) scale(.97); }
 
   .qtext {
     flex: 1; display: flex; align-items: center; justify-content: center;
@@ -135,8 +146,7 @@
     display: block; width: 100%; border: none; border-radius: 12px; font-family: inherit;
     font-size: 15px; font-weight: bold; padding: 13px 0; cursor: pointer; margin-top: 10px;
   }
-  .m-photo { background: #4a3f35; color: #f7f1e3; box-shadow: 0 2px 0 #2e261e; }
-  .m-plain { background: #efe6d2; color: #8a7a64; box-shadow: 0 2px 0 #ddcfb4; }
+  .m-plain { background: #e8703a; color: #fff; box-shadow: 0 2px 0 #c05a2b; letter-spacing: 2px; }
 </style>
 </head>
 <body>
@@ -170,8 +180,7 @@
     <div class="stamp" id="modal-stamp">クエストクリア！</div>
     <p class="mq" id="modal-q"></p>
     <input type="text" class="mnote" id="modal-note" hidden>
-    <button class="m-photo" id="m-photo">📷 しゃしんを のこす</button>
-    <button class="m-plain" id="m-plain">そのまま完了</button>
+    <button class="m-plain" id="m-plain">これで完了</button>
   </div>
 </div>
 <div id="reveal" hidden>
@@ -182,7 +191,6 @@
     <button class="m-plain" id="r-close">とじる</button>
   </div>
 </div>
-<input type="file" accept="image/*" id="fileinput" hidden>
 
 <script>
 // ---- クエストプール（文体ガイド: CLAUDE.md 参照） ----
@@ -347,12 +355,8 @@ const cardEl = $('#card');
 const stageEl = $('#stage');
 
 function cardHTML(q) {
-  const c = q.cat ? CATS[q.cat] : null;   // チェーンのステップはチップなし（正体を隠す）
-  const chip = (c && q.cat !== 'yattemiru') ?
-    `<span class="chip" style="background:${c.color}">${c.emoji} ${c.name}</span>` : '';
   const haveBtn = q.have ? '<button class="btn-have">🏠 もう家にある</button>' : '';
   return `
-    <div class="chiprow">${chip}</div>
     <p class="qtext">${q.text}</p>
     <div class="actions">
       <button class="btn-done">やった！</button>
@@ -375,7 +379,7 @@ function swapCard(outX, outY, rot) {
   setTimeout(() => {
     renderCard();
     cardEl.style.transition = 'none';
-    cardEl.style.transform = 'translateY(12px) scale(.96)';  // 山の1枚目の位置から
+    cardEl.style.transform = 'translateY(14px) rotate(-2.5deg) scale(.985)';  // 山の1枚目の位置から
     requestAnimationFrame(() => requestAnimationFrame(() => {
       cardEl.style.transition = 'transform .2s ease-out, opacity .15s';
       cardEl.style.transform = '';
@@ -415,9 +419,10 @@ cardEl.addEventListener('click', e => {
   if (e.target.closest('.btn-skip')) {
     reroll(-1);
   } else if (e.target.closest('.btn-have')) {
-    completeQuest(null);                 // 買わずに完了。写真は聞かない
+    completeQuest();                     // 買わずに完了
   } else if (e.target.closest('.btn-done')) {
-    openModal();
+    if (byId(S.slot).input) openModal(); // 入力があるクエストだけダイアログ
+    else completeQuest();
   }
 });
 
@@ -462,12 +467,11 @@ function openModal() {
   note.value = '';
   $('#modal').hidden = false;
 }
-function completeQuest(photo) {
+function completeQuest() {
   pending = false;
   $('#modal').hidden = true;
   const id = S.slot;
   const entry = { id, ts: Date.now() };
-  if (photo) entry.photo = photo;
   const noteEl = $('#modal-note');
   const noteText = noteEl.hidden ? '' : noteEl.value.trim();
   if (noteText) entry.note = noteText;
@@ -494,21 +498,23 @@ function completeQuest(photo) {
       });
       entry.tanka = lines;               // アルバムにも歌として残す
       setTimeout(() => showTanka(lines), 700);
+    } else if (cq.isLast) {
+      setTimeout(() => showToast('なにかが完成した！'), 500);
     }
   }
   S.slot = draw(S);
-  try {
-    localStorage.setItem(KEY, JSON.stringify(S));
-  } catch (e) {
-    if (entry.photo) {                     // 容量オーバー時は写真だけあきらめる
-      delete entry.photo;
-      save();
-      alert('容量がいっぱいで、しゃしんは保存できませんでした');
-    }
-  }
+  save();
   burst();
   swapCard(0, -window.innerHeight * 0.6, -6);   // 完了は上に飛んでいく
   updateBadge();
+}
+
+function showToast(text) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = text;
+  stageEl.appendChild(t);
+  setTimeout(() => t.remove(), 1600);
 }
 function showTanka(lines) {
   const box = $('#tanka-lines');
@@ -522,34 +528,10 @@ function showTanka(lines) {
 }
 $('#r-close').addEventListener('click', () => { $('#reveal').hidden = true; });
 
-$('#m-plain').addEventListener('click', () => completeQuest(null));
-$('#m-photo').addEventListener('click', () => $('#fileinput').click());
+$('#m-plain').addEventListener('click', () => completeQuest());
 $('#modal').addEventListener('click', e => {
   if (e.target.id === 'modal') { $('#modal').hidden = true; pending = false; }
 });
-
-$('#fileinput').addEventListener('change', async e => {
-  const file = e.target.files[0];
-  e.target.value = '';
-  if (!file || !pending) return;
-  const dataUrl = await shrinkImage(file, 800, 0.72);
-  completeQuest(dataUrl);
-});
-function shrinkImage(file, maxSize, quality) {
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
-      const cv = document.createElement('canvas');
-      cv.width = Math.round(img.width * scale);
-      cv.height = Math.round(img.height * scale);
-      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
-      URL.revokeObjectURL(img.src);
-      resolve(cv.toDataURL('image/jpeg', quality));
-    };
-    img.src = URL.createObjectURL(file);
-  });
-}
 
 // ---- アルバム ----
 function renderAlbum() {
