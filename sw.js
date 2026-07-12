@@ -1,5 +1,5 @@
 // Whim service worker: オフラインでも開けるようにするだけの最小構成
-const CACHE = "whim-v1";
+const CACHE = "whim-v2";
 const CORE = [
   "./",
   "./index.html",

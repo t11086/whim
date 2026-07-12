@@ -25,6 +25,7 @@
     --bg: #f4f3ee;
     --ink: #33312c;
     --sub: #9b978e;
+    --sub2: #6b675e;             /* サブ文字の濃いほう（スキップ等、読ませたいもの） */
     --line: #dcd9cf;
     --accent: #5c74a8;           /* くすみブルー */
     --bad: #cf5f4a;
@@ -46,13 +47,42 @@
   }
   #app { width: 100%; max-width: 480px; padding: 16px 16px 96px; }
 
-  header { text-align: center; padding: 10px 0 0; }
+  header { text-align: center; padding: 10px 0 0; position: relative; }
   header h1 { transform: rotate(-2deg); }
   header h1 svg { height: 30px; width: auto; display: block; margin: 0 auto; color: var(--ink); }
   header .tagline { font-size: 10px; color: var(--sub); letter-spacing: 3px; margin-top: 3px; }
 
   .stage { position: relative; height: min(62vh, 500px); margin-top: 26px; }
-  .hint { text-align: center; font-size: 11px; color: var(--sub); letter-spacing: 2px; margin-top: 48px; }
+
+  /* かいものメモの入口。1件でも入っているときだけ出る（件数バッジは出さない） */
+  #memo-open {
+    position: absolute; top: 10px; right: 0;
+    display: flex; align-items: center; gap: 4px;
+    border: none; background: none; font-family: inherit;
+    font-size: 11px; font-weight: 600; color: var(--sub2); cursor: pointer;
+    padding: 4px 2px;
+  }
+  #memo-open[hidden] { display: none; }
+  #memo-open svg { width: 15px; height: 15px; }
+  #memo-open:active { opacity: .6; }
+
+  /* 初回だけのコーチマーク（常設ヒントの代わり） */
+  .coach {
+    text-align: center; font-size: 12px; color: var(--sub2); letter-spacing: 1px;
+    margin-top: 44px; transition: opacity .6s;
+  }
+  .coach[hidden] { display: none; }
+  .coach.out { opacity: 0; }
+  /* スワイプできることを、文字ではなく動きで教える */
+  @keyframes wiggle {
+    0%, 100% { transform: none; }
+    12% { transform: translateX(-30px) rotate(-2.2deg); }
+    30% { transform: translateX(26px) rotate(1.9deg); }
+    48% { transform: translateX(-17px) rotate(-1.2deg); }
+    66% { transform: translateX(10px) rotate(.7deg); }
+    84% { transform: translateX(-4px) rotate(-.3deg); }
+  }
+  .card.wiggle { animation: wiggle 1.7s ease-in-out .5s; }
 
   .card {
     position: absolute; inset: 0;
@@ -107,8 +137,14 @@
   .btn-done:active { transform: translateY(1px); opacity: .85; }
   .btn-skip {
     border: none; background: none; font-family: inherit;
-    font-size: 13px; color: var(--sub); padding: 4px 0; cursor: pointer;
-    text-decoration: underline wavy #c9c5ba; text-underline-offset: 5px;
+    font-size: 13px; color: var(--sub2); padding: 4px 0; cursor: pointer;
+    text-decoration: underline wavy #aca79b; text-underline-offset: 5px;
+  }
+  /* 買い物カードだけに出る。ベタ塗りボタンを増やさないようテキストボタンにする */
+  .btn-memo {
+    border: none; background: none; font-family: inherit;
+    font-size: 13px; color: var(--accent); padding: 4px 0; cursor: pointer; font-weight: 600;
+    text-decoration: underline wavy #a9b6d2; text-underline-offset: 5px;
   }
   .btn-have {
     border: 1px dashed #c3bfb4; border-radius: 8px; font-family: inherit; font-size: 13px;
@@ -185,11 +221,26 @@
   nav button svg { display: block; width: 21px; height: 21px; margin: 0 auto 3px; }
 
   /* modal */
-  #reveal, #fortune {
+  #reveal, #fortune, #memo {
     position: fixed; inset: 0; background: rgba(40,38,34,.5);
     display: flex; align-items: center; justify-content: center; z-index: 10; padding: 24px;
   }
-  #reveal[hidden], #fortune[hidden] { display: none; }
+  #reveal[hidden], #fortune[hidden], #memo[hidden] { display: none; }
+
+  /* かいものメモ: 手帳の罫線に品名を書いたリスト。「あと何件」は出さない */
+  #memolist { list-style: none; margin: 14px 0 18px; }
+  #memolist li {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 2px; border-bottom: 1px dashed var(--line);
+  }
+  /* .mbox button（幅100%のベタ塗り）を打ち消す。id セレクタで詳細度を上げる */
+  #memolist button {
+    width: auto; margin: 0; padding: 2px 4px; border-radius: 4px;
+    background: none; font-weight: 400;
+  }
+  #memolist .memo-buy { min-width: 24px; font-size: 17px; line-height: 1; color: var(--accent); }
+  #memolist .memo-name { flex: 1; text-align: left; font-size: 15px; line-height: 1.5; }
+  #memolist .memo-drop { font-size: 15px; color: #c3bfb4; }
   .tanka { font-size: 17px; line-height: 2.1; text-align: center; font-weight: 600; margin: 10px 0 14px; }
   .tanka p { margin: 0; }
   .mbox {
@@ -222,6 +273,9 @@
   .mnote::placeholder { color: #c3bfb4; }
   .note-ng { border-bottom-color: var(--bad) !important; animation: shake .3s; }
   .note-errmsg { font-size: 12px; color: var(--bad); text-align: center; margin: -4px 0 0; }
+  .note-count { font-size: 12px; color: var(--sub); text-align: center; margin: -6px 0 0; min-height: 15px; }
+  .note-count.ok { color: var(--accent); }
+  .note-count.over { color: var(--bad); }
   @keyframes shake {
     0%, 100% { transform: none; }
     25% { transform: translateX(-6px); }
@@ -264,7 +318,12 @@
   <header>
     <!-- ロゴは Bradley Hand Bold をアウトライン化したSVG（全環境で同一表示） -->
     <h1 aria-label="Whim"><svg viewBox="19 -745 2734 800" xmlns="http://www.w3.org/2000/svg"><path d="M988 -453Q988 -443 981 -432Q975 -417 975 -408Q975 -407 954 -363L943 -340L934 -324V-319L891 -266L883 -245L862 -222L847 -189L832 -184L827 -176Q819 -172 815 -162L806 -141L795 -132L791 -123L766 -92L760 -74L747 -59V-45L738 -30L745 4Q739 23 711 31Q703 35 691 35L665 24L650 -17L626 -54L625 -78L608 -92L596 -118Q589 -135 577 -157Q576 -170 566 -181L555 -197L552 -214L542 -221L534 -263L515 -299L517 -305Q514 -311 509 -318L506 -330Q497 -321 471 -296Q467 -281 442 -271L443 -275L432 -266Q429 -265 425 -264L413 -252Q406 -242 390 -230L369 -205L343 -166L325 -153Q323 -151 317 -141Q314 -128 302 -118L304 -107L296 -102L291 -87L285 -80L269 -50L278 -42L275 -24L278 -19Q276 -18 271 -14V-9Q271 22 238 22Q224 22 210 10L181 -30L175 -43L146 -90L135 -129L116 -164L113 -185L102 -206L91 -245V-256L64 -335L66 -342L63 -345L54 -371V-390L50 -425L39 -438L54 -476V-478Q62 -508 85 -508Q92 -508 111 -502Q136 -480 136 -448V-444L140 -439L133 -419V-408L144 -331L140 -325L146 -322L155 -305L166 -244L171 -233L178 -201L188 -197V-177L195 -164L196 -152L200 -150L206 -125L210 -124L214 -117Q218 -105 220 -104V-105L229 -126L238 -137L246 -154L253 -162Q254 -165 262 -181L276 -190L279 -205L303 -227L311 -247L326 -252L327 -255L329 -259Q336 -274 346 -276L361 -286L368 -294L371 -304Q393 -311 400 -335L419 -337L427 -363H438L446 -379L460 -380V-394L473 -410L478 -438Q485 -443 498 -452L499 -446L513 -465H538L556 -447L572 -440L575 -415L573 -390L575 -366L601 -306L599 -294L606 -282L609 -270Q619 -256 630 -207L643 -184L645 -171L655 -162L674 -119Q675 -116 683 -105L690 -109Q696 -121 703 -128L715 -134L719 -143L723 -159L744 -182Q741 -182 741 -183Q744 -186 756 -190L766 -204L775 -219L801 -245L823 -281L838 -301L850 -326L866 -343L878 -364L889 -390L883 -398L895 -421Q897 -426 901 -434V-442Q895 -457 895 -470V-476L900 -484L909 -495L912 -508Q924 -525 941 -525Q955 -525 968 -512L988 -492L986 -463Q988 -460 988 -453Z M1451 -10Q1451 30 1408 30Q1387 30 1377 13Q1367 -1 1360 -40V-54Q1363 -59 1363 -64Q1363 -66 1362 -69L1348 -90L1358 -109L1354 -130L1358 -142V-155L1360 -167L1356 -185L1360 -194V-227L1361 -270L1354 -303L1358 -315L1351 -340L1343 -333L1321 -324L1291 -286L1279 -287L1261 -258L1258 -246L1247 -241L1236 -224L1231 -213L1220 -178L1202 -156L1198 -142L1188 -134L1184 -110L1164 -92L1161 -55H1152L1149 -49L1131 -18L1114 0L1099 20L1083 15H1070L1058 -1L1047 -37L1045 -90L1042 -107L1045 -127L1043 -174L1051 -176L1056 -245L1060 -258L1057 -279L1062 -282L1066 -314L1070 -325L1066 -339L1069 -344L1067 -347L1070 -375L1062 -382L1069 -396L1068 -425L1057 -454L1065 -463L1058 -490V-506L1055 -513L1050 -545L1045 -560L1030 -589L1041 -603L1051 -620H1060Q1082 -620 1093 -604L1107 -593L1113 -575L1128 -562L1125 -548L1132 -527L1131 -525L1133 -523L1132 -490L1133 -446L1140 -418L1135 -406L1137 -389L1132 -375L1135 -351L1130 -331L1132 -327L1130 -266L1133 -252L1127 -245L1124 -212L1120 -197L1124 -170L1120 -162L1119 -142Q1130 -145 1130 -154L1138 -162L1145 -175L1147 -194L1158 -210L1164 -230L1179 -246L1183 -265L1193 -266V-275L1194 -287L1206 -294V-302L1216 -304L1218 -320L1217 -328L1235 -336L1240 -340L1238 -350L1247 -353L1254 -370H1266L1277 -377Q1277 -384 1278 -387L1289 -392Q1307 -407 1323 -410V-412Q1349 -425 1359 -425Q1374 -425 1386 -411Q1397 -407 1400 -396L1409 -390L1412 -376L1427 -353V-273L1426 -238L1430 -229V-155L1427 -142V-122L1430 -100L1426 -81Q1430 -66 1431 -56L1442 -45V-37L1446 -34Q1451 -17 1451 -10Z M1731 -676Q1731 -664 1715 -654V-652Q1696 -629 1682 -626L1667 -608L1657 -595L1634 -589L1624 -575L1608 -567L1582 -544L1566 -559L1569 -584L1580 -602Q1581 -616 1596 -626V-630L1602 -634L1603 -649L1619 -653V-662L1631 -664Q1635 -684 1648 -693L1651 -695L1657 -701L1665 -725Q1731 -709 1731 -676ZM1833 -146Q1833 -123 1825 -117L1820 -113L1815 -99L1799 -94Q1792 -78 1778 -69L1769 -66L1756 -52L1744 -49Q1737 -31 1715 -30Q1713 -27 1706 -18Q1691 -8 1675 -6L1670 -5L1663 4H1643L1627 16L1586 -14L1567 -53L1566 -102L1562 -114L1574 -202L1578 -206Q1575 -221 1575 -235Q1575 -244 1581 -272L1586 -295Q1584 -301 1578 -308L1584 -327L1586 -350L1588 -353Q1584 -362 1583 -373Q1584 -375 1585.0 -378.5Q1586 -382 1586 -384Q1583 -393 1583 -401Q1583 -425 1610 -423L1622 -422Q1634 -428 1637 -428Q1657 -428 1664 -406V-402Q1668 -390 1668 -379Q1668 -370 1666 -366L1659 -316L1666 -302Q1666 -284 1654 -270L1658 -258L1645 -220Q1643 -195 1640 -182V-157L1634 -143L1635 -133L1633 -110L1635 -92L1650 -80L1662 -82L1664 -85L1672 -84L1685 -88L1696 -99L1700 -105L1707 -106L1709 -111L1712 -115L1718 -111L1728 -121L1734 -120L1736 -127H1738L1741 -135L1750 -139L1769 -148Q1792 -164 1814 -164H1818Q1829 -157 1833 -146Z M2733 -118Q2728 -104 2720 -97Q2717 -86 2711 -81Q2706 -71 2699 -67L2695 -61Q2691 -55 2684 -55L2679 -45H2672L2667 -36L2659 -33L2653 -26L2648 -22Q2633 -22 2623 -13Q2610 -8 2596 -8Q2582 -8 2568 -15Q2552 -16 2552 -20L2538 -22L2535 -25L2529 -37L2518 -46Q2507 -59 2506 -70Q2499 -80 2492 -108L2482 -124V-133L2475 -163L2476 -175L2470 -206L2473 -231L2468 -238L2458 -213Q2439 -192 2435.5 -187.5Q2432 -183 2427 -183Q2426 -183 2423 -184L2417 -173Q2416 -172 2416 -169Q2416 -163 2423 -162Q2421 -160 2413 -148Q2409 -140 2406 -137L2403 -142L2401 -128Q2388 -118 2383 -98Q2373 -85 2352 -61L2339 -47Q2334 -47 2334 -45V-43Q2328 -29 2313 -21L2301 -6H2294L2270 3Q2240 1 2233 -23L2232 -34L2226 -47V-58L2218 -87V-96L2212 -106L2216 -137Q2215 -142 2215 -151Q2215 -159 2216 -162L2215 -168V-172L2210 -183L2218 -202Q2216 -210 2212 -228L2215 -237L2218 -266L2210 -287L2212 -304L2209 -313Q2208 -316 2202 -332L2195 -328L2182 -312L2170 -301L2146 -271L2144 -260L2127 -242L2120 -228L2113 -220Q2110 -198 2091 -189L2090 -175Q2084 -169 2077.5 -159.0Q2071 -149 2068.5 -147.5Q2066 -146 2060 -141L2048 -124Q2048 -107 2035 -100V-94Q2029 -86 2019 -78L2018 -80L2015 -66Q2007 -66 2000 -47L1997 -43Q1996 -27 1980 -19L1966 -6Q1950 2 1945 2Q1919 2 1911 -41L1907 -63Q1906 -65 1906 -69Q1906 -76 1909 -83L1904 -102L1906 -118L1904 -134Q1906 -155 1911 -160Q1908 -181 1908 -184V-202Q1912 -209 1918 -220L1912 -226Q1910 -234 1910 -235Q1910 -242 1922 -259L1915 -278L1919 -290L1913 -319L1915 -333L1910 -355L1911 -370L1902 -388Q1922 -427 1945 -427Q1957 -427 1968 -417L1970 -407Q1987 -398 1987 -380Q1987 -383 1984 -359L1980 -360L1989 -343L1983 -335L1982 -331L1988 -285L1986 -246L1983 -239L1987 -223Q1990 -219 1990 -213Q1990 -205 1982 -197Q1982 -183 1977 -174L1980 -144V-132L1981 -134L1987 -143L2001 -168H2004Q2010 -168 2017 -187L2024 -206Q2026 -212 2039 -225L2043 -243L2055 -261L2059 -275Q2064 -278 2069 -282L2070 -285Q2073 -289 2092 -306L2098 -309L2100 -319L2105 -322Q2110 -343 2130 -350L2126 -353L2130 -355Q2129 -356 2129 -358Q2129 -360 2131 -364L2147 -371L2150 -387H2161Q2161 -388 2163 -394L2183 -410Q2197 -414 2202 -414Q2214 -414 2235 -407L2245 -393L2249 -391L2254 -379L2268 -360V-347L2277 -337V-322Q2288 -298 2288 -281L2285 -269L2291 -252L2280 -241L2284 -219L2283 -213L2282 -208Q2280 -198 2280 -193Q2280 -188 2285 -173L2282 -162L2285 -148L2282 -145Q2284 -131 2288 -98L2287 -94L2319 -129L2329 -148Q2333 -154 2342 -167V-169Q2346 -185 2355 -191Q2355 -197 2365 -206L2373 -211Q2377 -228 2394 -239L2399 -253L2408 -265L2418 -275Q2427 -282 2432 -297L2440 -309L2444 -324L2455 -330L2466 -344L2477 -368Q2473 -368 2473 -370Q2473 -370 2475 -374L2482 -380L2490 -396Q2507 -402 2509 -402Q2509 -402 2513 -400L2531 -399L2547 -392L2561 -376L2564 -362L2563 -351L2558 -347L2547 -326L2543 -303Q2548 -298 2548 -285Q2544 -280 2544 -272L2540 -264Q2542 -259 2542 -248Q2542 -239 2541 -235L2537 -230L2541 -223L2534 -214Q2540 -214 2540 -201Q2542 -195 2542 -193Q2542 -190 2540 -186Q2542 -176 2542 -167V-165Q2542 -163 2555 -124L2557 -114L2568 -102L2574 -88L2580 -85L2584 -79L2589 -78L2598 -76L2603 -77H2606Q2616 -77 2630 -85Q2634 -95 2651 -106Q2652 -111 2663 -125L2680 -137L2686 -149Q2694 -154 2703 -154Q2714 -154 2727 -148Q2733 -138 2733 -118Z" fill="currentColor"/></svg></h1>
-    <p class="tagline">人生に、意味のない用事を。</p>
+    <p class="tagline">予定になかったことを。</p>
+    <!-- メモに1件でも入っているときだけ出る。件数は出さない（たまっている圧をかけない） -->
+    <button id="memo-open" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h12v17H6z"/><path d="M9 8.5h6M9 12.5h6M9 16.5h3"/></svg>
+      かいものメモ
+    </button>
   </header>
 
   <section id="view-today">
@@ -273,7 +332,8 @@
       <div class="card back b1"></div>
       <div class="card" id="card"></div>
     </div>
-    <p class="hint">← よこに スワイプしても スキップ →</p>
+    <!-- 初回だけ出るコーチマーク（常設のヒント文は廃止。カードが揺れるのと一緒に出る） -->
+    <p class="coach" id="coach" hidden>よこにスワイプしても スキップできます</p>
   </section>
 
   <section id="view-album" hidden>
@@ -313,6 +373,13 @@
     <div class="stamp">短歌、完成。</div>
     <div class="tanka" id="tanka-lines"></div>
     <button class="m-plain" id="r-close">とじる</button>
+  </div>
+</div>
+<div id="memo" hidden>
+  <div class="mbox">
+    <div class="stamp">かいものメモ</div>
+    <ul id="memolist"></ul>
+    <button class="m-plain" id="memo-close">とじる</button>
   </div>
 </div>
 <div id="lightbox" hidden><img alt=""></div>
@@ -388,6 +455,13 @@ const QUESTS = [
   { id: 48, cat: 'yattemiru', place: 'いえ',   text: '氷をひとつ、なくなるまで口の中でとかす' },
   { id: 50, cat: 'totonoe',  place: 'いえ',    text: '玄関の靴を、ぜんぶそろえる' },
   { id: 51, cat: 'totonoe',  place: 'どこでも', text: '財布のお札を、ぜんぶ同じ向きに入れ直す' },
+  // ---- 拡充バッチ2（2026-07-12。「あとで効く」小さな点検。効能は書かず、見る行為だけを言う） ----
+  { id: 52, cat: 'miru',     place: 'どこでも', text: '明日、傘がいるかどうかを調べる' },
+  { id: 53, cat: 'miru',     place: 'いえ',    text: '冷蔵庫をあけて、あと1回ぶんしかないものを探す' },
+  { id: 54, cat: 'miru',     place: 'どこでも', text: '財布の中の現金を数える' },
+  { id: 55, cat: 'miru',     place: 'どこでも', text: 'スマホの充電が、いま何％のこっているか見る' },
+  { id: 56, cat: 'miru',     place: 'いえ',    text: 'トイレットペーパーの残りが、あと何ロールあるか数える' },
+  { id: 57, cat: 'totonoe',  place: 'いえ',    text: '明日履く靴を、玄関に出しておく' },
 ];
 
 // ---- チェーンクエスト（つづきもの） ----
@@ -414,14 +488,10 @@ const CHAINS = [
       finale: { stamp: 'コースターができました' } },
     { text: '模様を描いたダンボールをコースターにして、飲み物を飲む' },
   ]},
-  // 5・7・5・7・7 — 完成して初めて短歌だったと気づく
-  { id: 'tanka', steps: [
-    { text: '好きな5文字を考える', input: '好きな5文字' },
-    { text: '好きな7文字を考える', input: '好きな7文字' },
-    { text: '好きな5文字を考える', input: '好きな5文字' },
-    { text: '好きな7文字を考える', input: '好きな7文字' },
-    { text: '好きな7文字を考える', input: '好きな7文字' },
-  ]},
+  // 短歌（5・7・5・7・7＝31文字）— 完成して初めて短歌だったと気づく。
+  // 句の切り方は TANKA_FORMS のどちらかがランダムで選ばれる（S.tankaForm）。
+  // 文字数がステップごとに変わるので text/input は CHAIN_STEPS 構築後にゲッターで差し込む
+  { id: 'tanka', steps: [ {}, {}, {} ] },
   { id: 'dukkah',
     country: { flag: 'eg', name: 'エジプト', dish: 'デュカ',
       note: 'エジプトの家庭の定番です。サラダやゆで卵にふっても合います。' },
@@ -529,10 +599,23 @@ CHAINS.forEach(ch => ch.steps.forEach((st, i) => {
                flag: ch.country.flag, country: ch.country.name };
   }
   CHAIN_STEPS[`${ch.id}-${i}`] = {
-    id: `${ch.id}-${i}`, text: st.text, have: !!st.have, input: st.input, finale, cat: null,
+    id: `${ch.id}-${i}`, text: st.text, have: !!st.have, item: st.item, input: st.input, finale, cat: null,
     chainId: ch.id, stepIndex: i, isLast: i === ch.steps.length - 1,
   };
 }));
+// かいものメモに入れられる上限。頭に入る量を超えたら、それはメモではなく雑用リスト
+const MEMO_MAX = 6;
+// メモに書く名前（スパイス名。item が無いステップは「〜を買ってくる」から作る）
+function itemName(q) { return q.item || q.text.replace(/を買ってくる$/, ''); }
+
+// 短歌の句の切り方（12＝5+7、14＝7+7 の融合。句またがりが起きて文っぽく書ける）
+const TANKA_FORMS = [[12, 5, 14], [12, 12, 7]];
+function tankaNeed(i) { return TANKA_FORMS[S.tankaForm ?? 0][i]; }
+// 文言は選ばれた形で変わるので遅延解決
+TANKA_FORMS[0].forEach((_, i) => {
+  Object.defineProperty(CHAIN_STEPS['tanka-' + i], 'text', { get: () => `好きな${tankaNeed(i)}文字を考える` });
+  Object.defineProperty(CHAIN_STEPS['tanka-' + i], 'input', { get: () => `好きな${tankaNeed(i)}文字` });
+});
 
 // ---- 国旗（せかいのキッチン用の小さな手貼りシール） ----
 function starPts(cx, cy, r, rot = -90) {
@@ -590,14 +673,15 @@ function mulberry32(a) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-function dailyOrder(day, chains, spices) {
+function dailyOrder(day, s) {
   const rand = mulberry32(hashSeed(day));
   // スパイス申告は一度答えたらもう出ない
-  const ids = QUESTS.filter(q => !(q.multi && spices)).map(q => q.id);
+  const ids = QUESTS.filter(q => !(q.multi && s.spices)).map(q => q.id);
   CHAINS.forEach(ch => {
-    if (SPICE_CHAINS.includes(ch.id) && !spices) return;   // 申告まで封印
-    const step = (chains && chains[ch.id]) || 0;
-    if (step < ch.steps.length) ids.push(`${ch.id}-${step}`);
+    if (SPICE_CHAINS.includes(ch.id) && !s.spices) return;   // 申告まで封印
+    const step = (s.chains && s.chains[ch.id]) || 0;
+    const id = `${ch.id}-${step}`;
+    if (step < ch.steps.length && !s.memo.includes(id)) ids.push(id);  // メモ入りは出さない
   });
   for (let i = ids.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
@@ -606,18 +690,72 @@ function dailyOrder(day, chains, spices) {
   return ids;
 }
 
+// ---- 持ち物（スパイス申告 ＋ これまでに買ったもの） ----
+// 買った記録はログから導出する。こうすると「戻す」でログを消したときに自動で持ち物からも消える
+function boughtItems(s) {
+  const out = [];
+  (s.log || []).forEach(en => {
+    const st = CHAIN_STEPS[en.id];
+    if (st && st.item && !out.includes(st.item)) out.push(st.item);
+  });
+  return out;
+}
+// シナモンは4チェーン、八角は2チェーンで別々に要求される。一度手に入れたら全チェーンで持っている扱いにする
+function hasItem(s, item) {
+  return (s.spices || []).includes(item) || boughtItems(s).includes(item);
+}
+
+// デッキ上のチェーンカードを、各チェーンの現在位置に合わせ直す（自動スキップで位置が動いたあと用）
+function syncChainCards(s) {
+  s.order = s.order.filter(id => {
+    const q = CHAIN_STEPS[id];
+    if (!q) return true;
+    if (!s.spices && SPICE_CHAINS.includes(q.chainId)) return false;    // 申告まで封印
+    if (s.memo.includes(id)) return false;                              // メモに入れたぶんは出さない
+    return q.stepIndex === (s.chains[q.chainId] || 0);
+  });
+  CHAINS.forEach(ch => {
+    if (SPICE_CHAINS.includes(ch.id) && !s.spices) return;
+    const step = s.chains[ch.id] || 0;
+    const id = `${ch.id}-${step}`;
+    if (step < ch.steps.length && !s.memo.includes(id) && !s.order.includes(id)) {
+      s.order.splice(Math.floor(Math.random() * (s.order.length + 1)), 0, id);
+    }
+  });
+}
+// メモの掃除: よそで同じ品を手に入れてチェーンが先に進んだら、メモからも消す
+function pruneMemo(s) {
+  s.memo = s.memo.filter(id => {
+    const q = CHAIN_STEPS[id];
+    return !!(q && q.stepIndex === (s.chains[q.chainId] || 0));
+  });
+}
+
 let S = load();
 function load() {
   let s = null;
   try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-  if (!s) s = { day: '', order: [], slot: null, skipped: [], doneToday: [], chains: {}, cool: {}, spices: null, log: [] };
+  if (!s) s = { day: '', order: [], slot: null, skipped: [], doneToday: [], chains: {}, cool: {}, spices: null, memo: [], log: [] };
   if (!s.chains) s.chains = {};
   if (!s.cool) s.cool = {};
+  if (!s.memo) s.memo = [];                          // かいものメモ（チェーンの買い物ステップのid）
+  if (!s.log) s.log = [];
   if (s.spices === undefined) s.spices = null;       // null = まだ申告していない
+  // 短歌の形を抽選（TANKA_FORMS の添字）。一度選んだら固定
+  if (s.tankaForm == null) {
+    // 旧5歩版（5・7・5・7・7）からの移行: 完成済みは完成のまま、途中ならはじめから
+    const t = s.chains.tanka || 0;
+    if (t >= 5) s.chains.tanka = 3;
+    else if (t > 0) s.chains.tanka = 0;
+    s.tankaForm = Math.random() < 0.5 ? 0 : 1;
+  }
   if (Array.isArray(s.slots)) { s.slot = s.slots[0] ?? null; delete s.slots; }  // 旧3枠形式からの移行
   s.order = (s.order || []).filter(id => byId(id));  // 廃止クエストを掃除
+  s.memo = s.memo.filter(id => CHAIN_STEPS[id]);
   // 申告済みなら、あとから追加されたスパイス系チェーンも持ち物ぶんを読み飛ばしておく
+  // （持ち物 = 申告ぶん ＋ これまでに買ったぶん。既存ユーザーの過去の買い物もここで効きはじめる）
   if (s.spices) SPICE_CHAINS.forEach(cid => ownedSkip(s, cid));
+  pruneMemo(s);
   // スパイス申告前は、スパイス系チェーンのカードをデッキから外しておく
   const gated = id => {
     const q = CHAIN_STEPS[id];
@@ -628,10 +766,11 @@ function load() {
     const q = CHAIN_STEPS[id];
     return !!(q && q.stepIndex !== (s.chains[q.chainId] || 0));
   };
-  s.order = s.order.filter(id => !gated(id) && !stale(id));
+  const inMemo = id => s.memo.includes(id);
+  s.order = s.order.filter(id => !gated(id) && !stale(id) && !inMemo(id));
   if (s.day !== todayStr()) {
     s.day = todayStr();
-    s.order = dailyOrder(s.day, s.chains, s.spices);
+    s.order = dailyOrder(s.day, s);
     s.skipped = [];
     s.doneToday = [];
     s.slot = null;
@@ -644,16 +783,9 @@ function load() {
         s.order.splice(Math.floor(Math.random() * (s.order.length + 1)), 0, q.id);
       }
     });
-    // 同日中のアップデート対応: 進行中チェーンの現在ステップがデッキに無ければ紛れ込ませる
-    CHAINS.forEach(ch => {
-      if (SPICE_CHAINS.includes(ch.id) && !s.spices) return;
-      const step = s.chains[ch.id] || 0;
-      const stepId = `${ch.id}-${step}`;
-      if (step < ch.steps.length && !s.order.includes(stepId)) {
-        s.order.splice(Math.floor(Math.random() * (s.order.length + 1)), 0, stepId);
-      }
-    });
-    if (!byId(s.slot) || gated(s.slot) || stale(s.slot)) { s.slot = null; s.slot = draw(s); }
+    // 同日中のアップデート対応: 進行中チェーンの現在ステップがデッキに無ければ紛れ込ませる（メモ入りは除く）
+    syncChainCards(s);
+    if (!byId(s.slot) || gated(s.slot) || stale(s.slot) || inMemo(s.slot)) { s.slot = null; s.slot = draw(s); }
   }
   // 占いカードはセッションの1枚目には出さない（デッキには残す）
   const first = byId(s.slot);
@@ -704,7 +836,12 @@ const stageEl = $('#stage');
 
 function cardHTML(q) {
   const haveBtn = q.have ? '<button class="btn-have">もう家にある</button>' : '';
+  // 買い物は「いま行けない」ことがあるので、カードを流さずメモに移せる（上限つき）
+  const memoBtn = q.have && S.memo.length < MEMO_MAX
+    ? '<button class="btn-memo">かいものメモに入れる</button>' : '';
   const noteInput = q.input ? `<input type="text" class="mnote card-note" placeholder="${q.input}">` : '';
+  // 短歌は文字数がシビアなので残り文字数を出す
+  const counter = q.chainId === 'tanka' ? '<p class="note-count"></p>' : '';
   const chips = q.multi
     ? `<div class="chips">${q.multi.map(m => `<button class="chip">${m}</button>`).join('')}</div>`
     : '';
@@ -720,8 +857,10 @@ function cardHTML(q) {
     ${chips}
     <div class="actions">
       ${noteInput}
+      ${counter}
       ${mainBtns}
       ${haveBtn}
+      ${memoBtn}
       <button class="btn-skip">スキップ</button>
     </div>`;
 }
@@ -754,7 +893,7 @@ function swapCard(outX, outY, rot) {
 function ownedSkip(s, chainId) {
   const ch = CHAINS.find(c => c.id === chainId);
   let i = s.chains[chainId] || 0;
-  while (i < ch.steps.length && ch.steps[i].item && (s.spices || []).includes(ch.steps[i].item)) i++;
+  while (i < ch.steps.length && ch.steps[i].item && hasItem(s, ch.steps[i].item)) i++;
   s.chains[chainId] = i;
 }
 
@@ -785,6 +924,69 @@ function reroll(dir) {
   swapCard(dir * window.innerWidth, 60, dir * 14);
 }
 
+// ---- かいものメモ ----
+// 買い物カードを「あとで買う品」としてメモに移す。カードはデッキから消え、もう出てこない
+function toMemo() {
+  if (animating || S.memo.length >= MEMO_MAX) return;
+  const id = S.slot;
+  S.memo.push(id);
+  S.order = S.order.filter(x => x !== id);
+  tickCool(S);
+  S.slot = draw(S);
+  save();
+  renderMemoBtn();
+  swapCard(window.innerWidth * 0.5, -window.innerHeight * 0.5, 10);   // メモのほうへ飛んでいく
+}
+// メモの品を手に入れた: そのステップを完了してチェーンを進める
+function memoBuy(id) {
+  S.memo = S.memo.filter(x => x !== id);
+  finishQuest(id);
+  // 手に入れたことで場のカードが古くなることがある（同じ品を待っていた別チェーンなど）
+  const cur = CHAIN_STEPS[S.slot];
+  if (cur && cur.stepIndex !== (S.chains[cur.chainId] || 0)) { S.slot = draw(S); renderCard(); }
+  save();
+  renderMemo();
+}
+// メモから外す: カードとしてデッキに戻すだけ（責めない。買わなくても何も起きない）
+function memoDrop(id) {
+  S.memo = S.memo.filter(x => x !== id);
+  syncChainCards(S);
+  save();
+  renderMemo();
+}
+function renderMemoBtn() {
+  $('#memo-open').hidden = S.memo.length === 0;
+}
+function renderMemo() {
+  renderMemoBtn();
+  const list = $('#memolist');
+  list.innerHTML = '';
+  S.memo.forEach(id => {
+    const q = CHAIN_STEPS[id];
+    if (!q) return;
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <button class="memo-buy" data-id="${id}" aria-label="買った">□</button>
+      <span class="memo-name">${itemName(q)}</span>
+      <button class="memo-drop" data-id="${id}" aria-label="メモから外す">×</button>`;
+    list.appendChild(li);
+  });
+  if (S.memo.length === 0) $('#memo').hidden = true;
+}
+$('#memo-open').addEventListener('click', () => { renderMemo(); $('#memo').hidden = false; });
+$('#memo-close').addEventListener('click', () => { $('#memo').hidden = true; });
+$('#memolist').addEventListener('click', e => {
+  const buy = e.target.closest('.memo-buy');
+  const drop = e.target.closest('.memo-drop');
+  if (buy) {
+    buy.textContent = '✓';                 // チェックが入ってから消える
+    const id = buy.dataset.id;
+    setTimeout(() => memoBuy(id), 260);
+  } else if (drop) {
+    memoDrop(drop.dataset.id);
+  }
+});
+
 function burst() {
   const b = document.createElement('div');
   b.className = 'burst';
@@ -809,6 +1011,8 @@ cardEl.addEventListener('click', e => {
     chip.classList.toggle('on');
   } else if (e.target.closest('.btn-skip')) {
     reroll(-1);
+  } else if (e.target.closest('.btn-memo')) {
+    toMemo();                            // あとで買う品としてメモへ
   } else if (e.target.closest('.btn-have')) {
     completeQuest();                     // 買わずに完了
   } else if (e.target.closest('.btn-done')) {
@@ -830,7 +1034,7 @@ cardEl.addEventListener('click', e => {
       // 短歌: ちょうどの文字数で書けているかチェック
       const el = cardEl.querySelector('.card-note');
       const v = el.value.replace(/\s/g, '');
-      const need = q.input.includes('5') ? 5 : 7;
+      const need = tankaNeed(q.stepIndex);
       const len = [...v].length;
       if (len !== need) {
         noteError(el, len === 0 ? `${need}文字、どうぞ` : `${need}文字ちょうどで（いま${len}文字）`);
@@ -877,8 +1081,23 @@ cardEl.addEventListener('input', e => {
     e.target.classList.remove('note-ng');
     const err = cardEl.querySelector('.note-errmsg');
     if (err) err.remove();
+    updateCount(e.target);
   }
 });
+
+// 短歌: 入力中の残り文字数を表示（空白は数えない）
+function updateCount(el) {
+  const box = cardEl.querySelector('.note-count');
+  if (!box) return;
+  const need = tankaNeed(byId(S.slot).stepIndex);
+  const len = [...el.value.replace(/\s/g, '')].length;
+  box.textContent =
+    len === 0 ? '' :
+    len < need ? `あと${need - len}文字` :
+    len === need ? `${need}文字ちょうど` : `${len - need}文字オーバー`;
+  box.classList.toggle('ok', len === need);
+  box.classList.toggle('over', len > need);
+}
 
 // カメラクエスト: 撮影した写真を縮小してアルバムに残し、そのまま完了
 $('#camerain').addEventListener('change', e => {
@@ -954,16 +1173,14 @@ function dragEnd() {
 cardEl.addEventListener('pointerup', dragEnd);
 cardEl.addEventListener('pointercancel', dragEnd);
 
-function completeQuest(opts = {}) {
-  const id = S.slot;
+// ようじを1件おえてログに残す（カードの演出はしない。カードからでもメモからでも呼ぶ）
+function finishQuest(id, opts = {}) {
   const entry = { id, ts: Date.now() };
-  const noteEl = cardEl.querySelector('.card-note');
-  const noteText = opts.note || (noteEl ? noteEl.value.trim() : '');
-  if (noteText) entry.note = noteText;
+  if (opts.note) entry.note = opts.note;
   if (opts.photo) entry.photo = opts.photo;
   if (opts.tanka) entry.tanka = opts.tanka;    // アルバムに歌として残す
   S.log.push(entry);
-  S.doneToday.push(id);
+  if (!S.doneToday.includes(id)) S.doneToday.push(id);
   tickCool(S);
   const cq = byId(id);
   if (cq.chainId) {
@@ -975,17 +1192,32 @@ function completeQuest(opts = {}) {
       const nextStep = S.chains[cq.chainId];
       if (nextStep < CHAINS.find(c => c.id === cq.chainId).steps.length) {
         const nextId = `${cq.chainId}-${nextStep}`;
-        S.order.splice(Math.floor(Math.random() * (S.order.length + 1)), 0, nextId);
+        if (!S.memo.includes(nextId) && !S.order.includes(nextId)) {
+          S.order.splice(Math.floor(Math.random() * (S.order.length + 1)), 0, nextId);
+        }
         S.cool[cq.chainId] = 3;          // 次のステップは3枚はさむまで出さない
       }
     }
     S.order = S.order.filter(x => x !== id);
+    // 手に入れた品は他のチェーンでも持っている扱いにする（シナモンは4チェーンで要求される）。
+    // 買い物ステップが読み飛ばされてカードの位置がずれるので、デッキとメモを整理し直す
+    if (cq.item) {
+      SPICE_CHAINS.forEach(cid => ownedSkip(S, cid));
+      pruneMemo(S);
+    }
+    syncChainCards(S);
   }
+  updateBadge();
+}
+
+function completeQuest(opts = {}) {
+  const noteEl = cardEl.querySelector('.card-note');
+  const note = opts.note || (noteEl ? noteEl.value.trim() : '');
+  finishQuest(S.slot, { ...opts, note });
   S.slot = draw(S);
   save();
   burst();
   swapCard(0, -window.innerHeight * 0.6, -6);   // 完了は上に飛んでいく
-  updateBadge();
 }
 
 function showTanka(lines) {
@@ -1022,14 +1254,14 @@ function renderAlbum() {
   const list = $('#albumlist');
   list.innerHTML = '';
   if (S.log.length === 0) {
-    list.innerHTML = '<p class="empty">まだ なにもありません。<br>むいみな ようじを すませると<br>ここに たまっていきます。</p>';
+    list.innerHTML = '<p class="empty">まだ なにもありません。<br>ようじを ひとつ すませると<br>ここに たまっていきます。</p>';
     return;
   }
   let lastDate = '';
   [...S.log].reverse().forEach((entry, ri) => {
     const logIndex = S.log.length - 1 - ri;
     const q = byId(entry.id);
-    if (!q) return;                      // 廃止クエストのログはスキップ
+    if (!q && !entry.tanka) return;      // 廃止クエストのログはスキップ（完成した短歌は残す）
     const d = new Date(entry.ts);
     const dstr = `${d.getMonth()+1}月${d.getDate()}日`;
     if (dstr !== lastDate) {
@@ -1041,7 +1273,7 @@ function renderAlbum() {
     }
     const div = document.createElement('div');
     div.className = 'entry';
-    div.innerHTML = `<p class="etext">${q.text}</p><button class="btn-undo" data-index="${logIndex}">戻す</button>`;
+    div.innerHTML = `<p class="etext">${q ? q.text : '好きな7文字を考える'}</p><button class="btn-undo" data-index="${logIndex}">戻す</button>`;
     if (entry.tanka) {
       const tp = document.createElement('div');
       tp.className = 'tanka';
@@ -1099,7 +1331,27 @@ function undoEntry(logIndex) {
     const cur = CHAIN_STEPS[S.slot];
     if (cur && SPICE_CHAINS.includes(cur.chainId)) { S.slot = draw(S); renderCard(); }
   }
-  if (q && q.chainId) {
+  if (q && q.item) {
+    // 買い物の取り消し: その品はもう持っていないことになる（持ち物はログから導出）。
+    // その品を読み飛ばしていた他のチェーンも巻き戻るので、全チェーンの位置を数え直す
+    const before = S.slot;
+    SPICE_CHAINS.forEach(cid => {
+      let step = 0;
+      S.log.forEach(en => {
+        const st = CHAIN_STEPS[en.id];
+        if (st && st.chainId === cid) step = Math.max(step, st.stepIndex + 1);
+      });
+      S.chains[cid] = step;
+      ownedSkip(S, cid);                 // 残りの持ち物ぶんは読み飛ばしたまま
+    });
+    pruneMemo(S);
+    syncChainCards(S);
+    const cur = CHAIN_STEPS[before];
+    if (!byId(before) || (cur && cur.stepIndex !== (S.chains[cur.chainId] || 0))) {
+      S.slot = draw(S);
+      renderCard();
+    }
+  } else if (q && q.chainId) {
     // 最新ステップの取り消しならチェーンを1歩巻き戻す
     if ((S.chains[q.chainId] || 0) === q.stepIndex + 1) {
       S.chains[q.chainId] = q.stepIndex;
@@ -1107,7 +1359,7 @@ function undoEntry(logIndex) {
       S.order = S.order.filter(x => x !== nextId);
       // 申告前に封印されているチェーンのカードは、デッキには戻さない（進行位置だけ巻き戻す）
       const sealed = !S.spices && SPICE_CHAINS.includes(q.chainId);
-      if (!sealed && !S.order.includes(entry.id)) {
+      if (!sealed && !S.memo.includes(entry.id) && !S.order.includes(entry.id)) {
         S.order.splice(Math.floor(Math.random() * (S.order.length + 1)), 0, entry.id);
       }
       // 巻き戻しで消したステップが場に出ていたら引き直す
@@ -1116,6 +1368,7 @@ function undoEntry(logIndex) {
   }
   save();
   renderAlbum();
+  renderMemoBtn();
   updateBadge();
 }
 document.querySelector('#albumlist').addEventListener('click', e => {
@@ -1150,10 +1403,35 @@ function updateBadge() {
   $('#albumcount').textContent = S.log.length ? `（${S.log.length}）` : '';
 }
 
+// ---- コーチマーク（初回だけ） ----
+// スワイプできることは、常設のヒント文ではなくカードの動きで教える。一度見たらもう出さない
+let coachTimer = null;
+function endCoach() {
+  cardEl.classList.remove('wiggle');
+  const tip = $('#coach');
+  if (tip.hidden) return;
+  clearTimeout(coachTimer);
+  tip.classList.add('out');
+  setTimeout(() => { tip.hidden = true; tip.classList.remove('out'); }, 600);
+}
+function showCoach() {
+  if (S.coached) return;
+  S.coached = true;
+  save();
+  $('#coach').hidden = false;
+  cardEl.classList.add('wiggle');
+  cardEl.addEventListener('animationend', () => cardEl.classList.remove('wiggle'), { once: true });
+  coachTimer = setTimeout(endCoach, 4600);
+}
+// さわった時点で役目は終わり（アニメ中に掴まれてもカードの操作を邪魔しない）
+cardEl.addEventListener('pointerdown', endCoach);
+
 // ---- 起動 ----
 save();
 renderCard();
+renderMemoBtn();
 updateBadge();
+showCoach();
 
 // PWA: オフライン用サービスワーカー（file:// で開いたときは登録しない）
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
